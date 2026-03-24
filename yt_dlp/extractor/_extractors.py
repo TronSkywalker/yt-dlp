@@ -1872,7 +1872,11 @@ from .smotrim import (
     SmotrimLiveIE,
     SmotrimPlaylistIE,
 )
-from .snapchat import SnapchatSpotlightIE
+from .snapchat import (
+    SnapchatSpotlightIE,
+    SnapchatStoryIE,
+    SnapchatUserStoryIE,
+)
 from .snotr import SnotrIE
 from .softwhiteunderbelly import SoftWhiteUnderbellyIE
 from .sohu import (
