@@ -58,6 +58,23 @@ class InstagramBaseIE(InfoExtractor):
             media, (kind, 'count'), *((f'edge_media_{key}', 'count') for key in keys),
             expected_type=int_or_none)
 
+    def _get_view_count(self, media, webpage=''):
+        return (
+            traverse_obj(
+                media,
+                'view_count',
+                'play_count',
+                'video_view_count',
+                'video_play_count',
+                ('edge_media_preview_play_count', 'count'),
+                ('edge_media_video_view_count', 'count'),
+                expected_type=int_or_none,
+            )
+            or str_to_int(self._search_regex(
+                (r'"video_view_count"\s*:\s*"?(\d+)', r'"play_count"\s*:\s*"?(\d+)'),
+                webpage or '', 'view count', default=None))
+        )
+
     def _get_dimension(self, name, media, webpage=None):
         return (
             traverse_obj(media, ('dimensions', name), expected_type=int_or_none)
@@ -100,7 +117,7 @@ class InstagramBaseIE(InfoExtractor):
                     node, 'display_url', 'thumbnail_src', 'display_src', expected_type=url_or_none),
                 'duration': float_or_none(node.get('video_duration')),
                 'timestamp': int_or_none(node.get('taken_at_timestamp')),
-                'view_count': int_or_none(node.get('video_view_count')),
+                'view_count': self._get_view_count(node),
                 'comment_count': self._get_count(node, 'comments', 'preview_comment', 'to_comment', 'to_parent_comment'),
                 'like_count': self._get_count(node, 'likes', 'preview_like'),
             }
@@ -148,7 +165,7 @@ class InstagramBaseIE(InfoExtractor):
             'channel': user_info.get('username'),
             'uploader': user_info.get('full_name'),
             'uploader_id': str_or_none(user_info.get('pk')),
-            'view_count': int_or_none(product_info.get('view_count')),
+            'view_count': self._get_view_count(product_info),
             'like_count': int_or_none(product_info.get('like_count')),
             'comment_count': int_or_none(product_info.get('comment_count')),
             '__post_extractor': self.extract_comments(_pk_to_id(product_info.get('pk'))),
@@ -511,6 +528,7 @@ class InstagramIE(InstagramBaseIE):
             'uploader_id': traverse_obj(media, ('owner', 'id')),
             'uploader': traverse_obj(media, ('owner', 'full_name')),
             'channel': username,
+            'view_count': self._get_view_count(media, webpage),
             'like_count': self._get_count(media, 'likes', 'preview_like') or str_to_int(self._search_regex(
                 r'data-log-event="likeCountClick"[^>]*>[^\d]*([\d,\.]+)', webpage, 'like count', fatal=False)),
             'comment_count': self._get_count(media, 'comments', 'preview_comment', 'to_comment', 'to_parent_comment'),
