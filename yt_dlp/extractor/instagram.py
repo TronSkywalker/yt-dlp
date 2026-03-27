@@ -59,21 +59,32 @@ class InstagramBaseIE(InfoExtractor):
             expected_type=int_or_none)
 
     def _get_view_count(self, media, webpage=''):
-        return (
-            traverse_obj(
-                media,
-                'view_count',
-                'play_count',
-                'video_view_count',
-                'video_play_count',
-                ('edge_media_preview_play_count', 'count'),
-                ('edge_media_video_view_count', 'count'),
-                expected_type=int_or_none,
-            )
-            or str_to_int(self._search_regex(
-                (r'"video_view_count"\s*:\s*"?(\d+)', r'"play_count"\s*:\s*"?(\d+)'),
-                webpage or '', 'view count', default=None))
+        # For newer reels, Instagram provides both video_view_count (unique views) 
+        # and video_play_count (total plays with rewatches). Use the maximum.
+        view_count = traverse_obj(
+            media,
+            'view_count',
+            'play_count',
+            'video_view_count',
+            ('edge_media_preview_play_count', 'count'),
+            ('edge_media_video_view_count', 'count'),
+            expected_type=int_or_none,
         )
+        play_count = traverse_obj(media, 'video_play_count', expected_type=int_or_none)
+        
+        # Prefer the higher count when both exist (play_count includes rewatches)
+        if view_count is not None and play_count is not None:
+            return max(view_count, play_count)
+        if play_count is not None:
+            return play_count
+        if view_count is not None:
+            return view_count
+            
+        # Fallback to webpage regex
+        return str_to_int(self._search_regex(
+            (r'"video_view_count"\s*:\s*"?(\d+)', r'"play_count"\s*:\s*"?(\d+)'),
+            webpage or '', 'view count', default=None))
+        
 
     def _get_dimension(self, name, media, webpage=None):
         return (
