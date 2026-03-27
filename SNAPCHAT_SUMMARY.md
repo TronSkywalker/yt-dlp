@@ -219,23 +219,114 @@ User reported downloaded user stories appeared as corrupted files or thumbnails.
 
 ## Platform Comparison: Livestream Recording Capabilities
 
-### TikTok Livestream Recording (TikTokLiveIE)
-**Purpose:** Record active TikTok livestreams with concurrent viewer metrics
+### End-to-End Live Workflow Summary
 
-**Supported URLs:**
+This is the verified live-video workflow supported by the current work:
+
+1. Start from a channel/account name
+2. Check whether the account is currently live
+3. Resolve the live video URL or room ID
+4. Extract live metadata and available formats
+5. Record the stream
+6. For exact clip lengths, resolve the media URL and use ffmpeg with `-t`
+
+### Facebook Live: From Channel Name to Recording
+**Purpose:** Start from a Facebook page/channel name, detect active live videos, return the live URL, and record the stream
+
+**Supported Input URLs:**
+- `https://www.facebook.com/{channel}`
+- `https://www.facebook.com/{channel}/videos`
+- `https://www.facebook.com/{channel}/videos/{video_id}`
+
+**End-to-End Workflow:**
+1. Input the channel/page URL
+2. `FacebookChannelLiveIE` checks the `/videos` page for active live entries
+3. The extractor returns one or more live video URLs
+4. `FacebookIE` extracts metadata and DASH formats for the live video
+5. yt-dlp downloads video + audio fragments and merges them into MP4
+
+**What You Can Get:**
+- active live URL from the channel page
+- live video ID
+- `is_live`
+- `title`
+- `concurrent_view_count`
+- `like_count`
+- `comment_count`
+- `repost_count` / shares
+- available DASH recording formats
+
+**What You Can Record:**
+- full live recording with yt-dlp
+- merged MP4 output from separate DASH video/audio tracks
+- exact-length clips by resolving the media URL first and then using ffmpeg
+
+**What You Cannot Get Reliably Yet:**
+- exact clip duration by only timing when yt-dlp is interrupted
+- full comment text/thread extraction from the public video page
+
+**Verified Example:**
+- channel: `blankgamingchannel`
+- detected live video: `1487666199814010`
+- metrics extracted: concurrent viewers, likes, comments, shares
+- recorded file: `fb_live_test.mp4`
+- verified result: 20.01s, 2.3 MB, MP4
+
+**Available Recording Formats (Verified Example):**
+
+| Format ID | Resolution | Bitrate | Type | Quality |
+|-----------|-----------|---------|------|---------|
+| **dash-lp-hd1-v-0** | 1280x720 | 278k | DASH video | ⭐ Best verified |
+| **dash-lp-md-v-0** | 640x360 | 129k | DASH video | ⭐⭐ Medium |
+| **dash-lp-ld-v-0** | 426x240 | 135k | DASH video | ⭐ Low |
+| **dash-lp-qd-a-0** | audio only | 99k | DASH audio | used for merge |
+
+### TikTok Live: From Account Name to Recording
+**Purpose:** Start from a TikTok account name, check if it is live, extract live metadata, and record the stream
+
+**Supported Input URLs:**
 - `https://www.tiktok.com/@{username}/live`
 - `m.tiktok.com/share/live/{room_id}`
 
-**Extractable Metrics:**
-| Field | Available | Notes |
-|-------|-----------|-------|
-| **Concurrent Viewers** | ✅ Yes | Real-time viewer count |
-| **Title** | ✅ Yes | Stream title with timestamp |
-| **Creator/Uploader** | ✅ Yes | Username & ID |
-| **Is Live** | ✅ Yes | Boolean status |
-| **Historical View Count** | ❌ No | Not available during stream |
-| **Like Count** | ❌ No | Not available during stream |
-| **Comment Count** | ❌ No | Not available during stream |
+**End-to-End Workflow:**
+1. Input the creator live URL
+2. `TikTokLiveIE` checks whether the account is currently live
+3. The extractor resolves the room ID and live stream formats
+4. yt-dlp extracts metadata and recording URLs
+5. The stream can be recorded directly with yt-dlp or clipped exactly with ffmpeg
+
+**What You Can Get:**
+- `is_live`
+- room/stream ID
+- `title`
+- `uploader`
+- `creator`
+- `uploader_id`
+- `uploader_url`
+- `concurrent_view_count`
+- direct live media URLs
+- available formats, resolutions, and bitrates
+
+**What You Can Record:**
+- direct live recording with yt-dlp into FLV
+- exact-length clips by resolving the media URL and using ffmpeg with `-t`
+
+**What You Cannot Get Reliably Yet:**
+- total/historical view count for the live
+- `like_count`
+- `comment_count`
+- `share_count`
+- live comments through yt-dlp itself
+
+**Additional Verified Capability:**
+- live comments can be streamed through a separate TikTok live WebSocket client
+- this is separate from yt-dlp and is not part of `TikTokLiveIE`
+
+**Verified Examples:**
+- `@apx_ryzz`: live detected, formats resolved, concurrent viewers extracted
+- `@anasproperty10`: live detected, concurrent viewers extracted, exact 10-second clip recorded
+- recorded files: `tiktok_anasproperty10_live_10s.flv`, `tiktok_anasproperty10_live_10s.mp4`
+- verified result: 10.087s, 960x1920, 4.65 MB
 
 **Available Recording Formats:**
 
@@ -245,65 +336,28 @@ User reported downloaded user stories appeared as corrupted files or thumbnails.
 | **flv-hd** | 1280x592 | 1800k | FLV | ⭐⭐⭐ Best |
 | **flv-sd** | 1167x540 | 1200k | FLV | ⭐⭐ Good |
 | **flv-ld** | 778x360 | 600k | FLV | ⭐ Lowest |
+| **flv-origin** | 960x1920 | 1000k | FLV | ⭐ Verified exact-clip source |
 | **rtmp-pull** | Unknown | Unknown | RTMP | N/A |
-
-**Example Recording Commands:**
-
-```bash
-# Record in highest quality (3500k)
-yt-dlp -f "flv-uhd" 'https://www.tiktok.com/@apx_ryzz/live' \
-  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
-
-# Record in best available quality
-yt-dlp -f "best" 'https://www.tiktok.com/@apx_ryzz/live' \
-  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
-
-# Record all format variants
-yt-dlp -f "best/bestvideo" 'https://www.tiktok.com/@apx_ryzz/live' \
-  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
-```
-
-**Recording Behavior:**
-- Stream continues until stopped (Ctrl+C)
-- File format: FLV (lower latency than MP4 for streaming)
-- Video codec: H.264
-- Audio codec: Unknown (extracted from stream)
-- File expands as stream continues
-
-**Example Output (Live Stream @apx_ryzz):**
-```
-Title: Geometry Dash Icon rating/lvl's 2026-03-27 09:10
-Uploader: apx_ryzz
-Creator: ryzz
-Room ID: 7621841686263548704
-Concurrent Viewers: 2
-Is Live: true
-Available Bitrates: 600k, 1200k, 1800k, 3500k, etc.
-```
-
-**Verified Test Results:**
-- ✓ Format list extraction working
-- ✓ Metadata (title, creator, uploader, concurrent viewers) extracted
-- ✓ Stream URL resolution successful
-- ✓ Multiple quality options available
-- ⚠️ Test stream too small (2 concurrent viewers) for meaningful length recording
 
 ---
 
 ## Platform Feature Matrix
 
-| Capability | Snapchat Spotlight | Snapchat Premium Story | Snapchat User Story | TikTok Video | TikTok Livestream | Instagram Reel |
-|-----------|------------------|----------------------|-------------------|--------------|-------------------|----------------|
-| **Download Video** | ✅ | ✅ | ✅ | ✅ | ✅ Recording Mode | ✅ |
-| **View Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
-| **Like Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
-| **Comment Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
-| **Share/Repost Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ❌ |
-| **Concurrent Viewers** | N/A | N/A | N/A | N/A | ✅ | N/A |
-| **HLS Stream** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| **Playlist/Batch** | ❌ | ❌ | ✅ | ✅ | N/A | ⚠️ (User profile broken) |
+| Capability | Snapchat Spotlight | Snapchat Premium Story | Snapchat User Story | TikTok Video | TikTok Livestream | Instagram Reel | Facebook Live |
+|-----------|------------------|----------------------|-------------------|--------------|-------------------|----------------|---------------|
+| **Download Video** | ✅ | ✅ | ✅ | ✅ | ✅ Recording Mode | ✅ | ✅ |
+| **View Count** | ✅ | ❌ | ❌ | ✅ | ⚠️ Scrappable during live (concurrent only) | ✅ | ⚠️ Live uses concurrent viewers |
+| **Like Count** | ✅ | ❌ | ❌ | ✅ | ❌ Not exposed in live metadata | ✅ | ✅ |
+| **Comment Count** | ✅ | ❌ | ❌ | ✅ | ⚠️ Comment stream scrappable during live (separate client) | ✅ | ✅ |
+| **Share/Repost Count** | ✅ | ❌ | ❌ | ✅ | ❌ Not exposed in live metadata | ❌ | ✅ |
+| **Concurrent Viewers** | N/A | N/A | N/A | N/A | ✅ | N/A | ✅ |
+| **HLS Stream** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **DASH Stream** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Playlist/Batch** | ❌ | ❌ | ✅ | ✅ | N/A | ⚠️ (User profile broken) | ✅ Channel live detection |
+
+**Matrix Note:** The older shorthand `❌ (hist)` meant the platform does not expose a historical/total live metric. For TikTok live, the live value that can be scraped is the current `concurrent_view_count`, and comment messages can be streamed separately during the live with a dedicated client.
 
 ---
 
 **Last Updated:** 27. März 2026  
-**Status:** ✓ Production Ready (Snapchat + Instagram Enhanced + TikTok Livestream Detection)
+**Status:** ✓ Production Ready (Snapchat + Instagram Enhanced + TikTok Livestream + Facebook Live Detection/Recording)
