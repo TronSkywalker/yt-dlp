@@ -217,5 +217,93 @@ User reported downloaded user stories appeared as corrupted files or thumbnails.
 
 ---
 
-**Last Updated:** 24. März 2026  
-**Status:** ✓ Production Ready
+## Platform Comparison: Livestream Recording Capabilities
+
+### TikTok Livestream Recording (TikTokLiveIE)
+**Purpose:** Record active TikTok livestreams with concurrent viewer metrics
+
+**Supported URLs:**
+- `https://www.tiktok.com/@{username}/live`
+- `m.tiktok.com/share/live/{room_id}`
+
+**Extractable Metrics:**
+| Field | Available | Notes |
+|-------|-----------|-------|
+| **Concurrent Viewers** | ✅ Yes | Real-time viewer count |
+| **Title** | ✅ Yes | Stream title with timestamp |
+| **Creator/Uploader** | ✅ Yes | Username & ID |
+| **Is Live** | ✅ Yes | Boolean status |
+| **Historical View Count** | ❌ No | Not available during stream |
+| **Like Count** | ❌ No | Not available during stream |
+| **Comment Count** | ❌ No | Not available during stream |
+
+**Available Recording Formats:**
+
+| Format ID | Resolution | Bitrate | Type | Quality |
+|-----------|-----------|---------|------|---------|
+| **flv-uhd** | 1280x592 | 3500k | FLV | ⭐⭐⭐ Best |
+| **flv-hd** | 1280x592 | 1800k | FLV | ⭐⭐⭐ Best |
+| **flv-sd** | 1167x540 | 1200k | FLV | ⭐⭐ Good |
+| **flv-ld** | 778x360 | 600k | FLV | ⭐ Lowest |
+| **rtmp-pull** | Unknown | Unknown | RTMP | N/A |
+
+**Example Recording Commands:**
+
+```bash
+# Record in highest quality (3500k)
+yt-dlp -f "flv-uhd" 'https://www.tiktok.com/@apx_ryzz/live' \
+  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
+
+# Record in best available quality
+yt-dlp -f "best" 'https://www.tiktok.com/@apx_ryzz/live' \
+  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
+
+# Record all format variants
+yt-dlp -f "best/bestvideo" 'https://www.tiktok.com/@apx_ryzz/live' \
+  -o 'tiktok_%(uploader)s_%(creator)s_%(id)s.%(ext)s'
+```
+
+**Recording Behavior:**
+- Stream continues until stopped (Ctrl+C)
+- File format: FLV (lower latency than MP4 for streaming)
+- Video codec: H.264
+- Audio codec: Unknown (extracted from stream)
+- File expands as stream continues
+
+**Example Output (Live Stream @apx_ryzz):**
+```
+Title: Geometry Dash Icon rating/lvl's 2026-03-27 09:10
+Uploader: apx_ryzz
+Creator: ryzz
+Room ID: 7621841686263548704
+Concurrent Viewers: 2
+Is Live: true
+Available Bitrates: 600k, 1200k, 1800k, 3500k, etc.
+```
+
+**Verified Test Results:**
+- ✓ Format list extraction working
+- ✓ Metadata (title, creator, uploader, concurrent viewers) extracted
+- ✓ Stream URL resolution successful
+- ✓ Multiple quality options available
+- ⚠️ Test stream too small (2 concurrent viewers) for meaningful length recording
+
+---
+
+## Platform Feature Matrix
+
+| Capability | Snapchat Spotlight | Snapchat Premium Story | Snapchat User Story | TikTok Video | TikTok Livestream | Instagram Reel |
+|-----------|------------------|----------------------|-------------------|--------------|-------------------|----------------|
+| **Download Video** | ✅ | ✅ | ✅ | ✅ | ✅ Recording Mode | ✅ |
+| **View Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
+| **Like Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
+| **Comment Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ✅ |
+| **Share/Repost Count** | ✅ | ❌ | ❌ | ✅ | ❌ (hist) | ❌ |
+| **Concurrent Viewers** | N/A | N/A | N/A | N/A | ✅ | N/A |
+| **HLS Stream** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Playlist/Batch** | ❌ | ❌ | ✅ | ✅ | N/A | ⚠️ (User profile broken) |
+
+---
+
+**Last Updated:** 27. März 2026  
+**Status:** ✓ Production Ready (Snapchat + Instagram Enhanced + TikTok Livestream Detection)
