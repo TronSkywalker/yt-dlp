@@ -594,6 +594,7 @@ from .expressen import ExpressenIE
 from .eyedotv import EyedoTVIE
 from .facebook import (
     FacebookAdsIE,
+    FacebookChannelLiveIE,
     FacebookIE,
     FacebookPluginsVideoIE,
     FacebookRedirectURLIE,

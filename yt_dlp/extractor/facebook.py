@@ -898,6 +898,62 @@ class FacebookIE(InfoExtractor):
         return self._extract_from_url(real_url, video_id)
 
 
+class FacebookChannelLiveIE(InfoExtractor):
+    _VALID_URL = r'https?://(?:www\.)?facebook\.com/(?P<id>[\w.-]+)(?:/videos)?/?(?:[?#]|$)'
+    IE_NAME = 'facebook:channel:live'
+    IE_DESC = 'Facebook channel/page live stream detector'
+    _TESTS = [{
+        'url': 'https://www.facebook.com/blankgamingchannel',
+        'info_dict': {
+            'id': 'blankgamingchannel',
+            'title': 'blankgamingchannel live streams',
+        },
+        'playlist_mincount': 0,
+    }]
+
+    @classmethod
+    def suitable(cls, url):
+        return (not FacebookIE.suitable(url)
+                and not FacebookReelIE.suitable(url)
+                and not FacebookAdsIE.suitable(url)
+                and not FacebookPluginsVideoIE.suitable(url)
+                and not FacebookRedirectURLIE.suitable(url)
+                and super().suitable(url))
+
+    def _real_extract(self, url):
+        channel_id = self._match_id(url)
+        videos_url = f'https://www.facebook.com/{channel_id}/videos'
+        webpage = self._download_webpage(videos_url, channel_id, note='Checking for live streams')
+
+        # Find all (video_id, is_live_streaming) pairs embedded in the page JSON
+        live_ids = []
+        seen = set()
+        for m in re.finditer(
+            r'"id":"(\d{13,16})"(?:[^{}]{0,500}?)"is_live_streaming":(true)',
+            webpage,
+            re.DOTALL,
+        ):
+            vid_id = m.group(1)
+            if vid_id not in seen:
+                seen.add(vid_id)
+                live_ids.append(vid_id)
+
+        if not live_ids:
+            self.to_screen(f'{channel_id}: No active live streams found')
+            return self.playlist_result([], channel_id, f'{channel_id} live streams')
+
+        entries = [
+            self.url_result(
+                f'https://www.facebook.com/{channel_id}/videos/{vid_id}',
+                FacebookIE,
+                vid_id,
+            )
+            for vid_id in live_ids
+        ]
+        self.to_screen(f'{channel_id}: Found {len(live_ids)} live stream(s): {", ".join(live_ids)}')
+        return self.playlist_result(entries, channel_id, f'{channel_id} live streams')
+
+
 class FacebookPluginsVideoIE(InfoExtractor):
     _VALID_URL = r'https?://(?:[\w-]+\.)?facebook\.com/plugins/video\.php\?.*?\bhref=(?P<id>https.+)'
     _TESTS = [{
