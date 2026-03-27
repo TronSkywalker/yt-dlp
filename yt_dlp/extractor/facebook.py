@@ -525,6 +525,21 @@ class FacebookIE(InfoExtractor):
                 }), get_all=False),
             }
 
+            # Fallback: extract engagement metrics from webpage JSON when feedback traverse misses
+            if not info_dict.get('like_count'):
+                info_dict['like_count'] = int_or_none(self._search_regex(
+                    (r'"reaction_count"\s*:\s*\{"count"\s*:\s*(\d+)',
+                     r'"i18n_reaction_count"\s*:\s*"(\d+)"'),
+                    webpage, 'like count', default=None))
+            if not info_dict.get('comment_count'):
+                info_dict['comment_count'] = int_or_none(self._search_regex(
+                    r'"comment_rendering_instance"\s*:\s*\{"comments"\s*:\s*\{"total_count"\s*:\s*(\d+)',
+                    webpage, 'comment count', default=None))
+            if not info_dict.get('repost_count'):
+                info_dict['repost_count'] = int_or_none(self._search_regex(
+                    r'"share_count"\s*:\s*\{"count"\s*:\s*(\d+)',
+                    webpage, 'share count', default=None))
+
             info_json_ld = self._search_json_ld(webpage, video_id, default={})
             info_json_ld['title'] = (re.sub(r'\s*\|\s*Facebook$', '', title or info_json_ld.get('title') or page_title or '')
                                      or (description or '').replace('\n', ' ') or f'Facebook video #{video_id}')
